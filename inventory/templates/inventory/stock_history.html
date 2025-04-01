@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block title %}Stock History - Clinici{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-history me-2"></i> Stock History</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'inventory_list' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Inventory
+        </a>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" action="{% url 'stock_history' %}">
+            <div class="row">
+                <div class="col-md-8">
+                    <label for="medicine" class="form-label">Select Medicine:</label>
+                    <select name="medicine" id="medicine" class="form-select">
+                        <option value="">-- Select a Medicine --</option>
+                        {% for med in medicines %}
+                            <option value="{{ med.id }}" {% if selected_medicine == med.id|stringformat:"s" %}selected{% endif %}>
+                                {{ med.name }} (Current: {{ med.quantity }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter me-1"></i> View History
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if transactions %}
+<div class="card shadow-sm">
+    <div class="card-body">
+        <h3 class="card-title mb-4">
+            <i class="fas fa-pills me-2"></i> Transactions for {{ transactions.first.medicine.name }}
+        </h3>
+        
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Quantity</th>
+                        <th>Employee</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trans in transactions %}
+                    <tr>
+                        <td>{{ trans.transaction_date|date:"Y-m-d H:i" }}</td>
+                        <td class="text-{{ trans.transaction_type|lower }}">
+                            {{ trans.transaction_type }}
+                        </td>
+                        <td>{{ trans.quantity }}</td>
+                        <td>{{ trans.employee.name|default:"System" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-4">
+                            No transactions recorded for this medicine.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

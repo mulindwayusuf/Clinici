@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block title %}Record Sale - Clinici{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-cash-register me-2"></i> Record Sale</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        {% if user.role == 'Admin' %}
+            <a href="{% url 'admin_dashboard' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+            </a>
+        {% else %}
+            <a href="{% url 'employee_dashboard' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="mb-4">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Medicine</th>
+                                <th>Available</th>
+                                <th>Price</th>
+                                <th>Quantity to Sell</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for medicine in medicines %}
+                            <tr>
+                                <td>{{ medicine.name }}</td>
+                                <td class="{% if medicine.quantity < 5 %}text-danger fw-bold{% endif %}">
+                                    {{ medicine.quantity }}
+                                </td>
+                                <td>USh {{ medicine.selling_price|floatformat:0 }}</td>
+                                <td>
+                                    <div class="input-group" style="max-width: 120px;">
+                                        <input type="number" name="quantities" class="form-control" min="0" max="{{ medicine.quantity }}" value="0">
+                                        <input type="hidden" name="medicine_ids" value="{{ medicine.id }}">
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">
+                                    No medicines available in inventory
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-check-circle me-1"></i> Complete Sale
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

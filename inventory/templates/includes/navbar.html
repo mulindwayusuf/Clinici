@@ -1,0 +1,21 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{% if request.user.is_authenticated %}{% if request.user.role == 'Admin' %}{% url 'admin_dashboard' %}{% else %}{% url 'employee_dashboard' %}{% endif %}{% else %}{% url 'login' %}{% endif %}">
+            <i class="fas fa-clinic-medical me-2"></i> Clinici
+        </a>
+        {% if request.user.is_authenticated %}
+        <div class="d-flex align-items-center">
+            <div class="dropdown">
+                <button class="btn btn-outline-light dropdown-toggle" type="button" id="userMenu" data-bs-toggle="dropdown">
+                    <i class="fas fa-user-circle me-1"></i> {{ request.user.username }}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="{% url 'profile' %}"><i class="fas fa-user me-2"></i> Profile</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{% url 'logout' %}"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</nav>

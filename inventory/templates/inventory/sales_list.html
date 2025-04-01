@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}Sales List - Clinici{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-receipt me-2"></i> Sales List {% if day %}for {{ day }}{% endif %}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'add_sale' %}" class="btn btn-sm btn-primary me-2">
+            <i class="fas fa-plus me-1"></i> New Sale
+        </a>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" action="{% url 'sales_list' %}">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label for="day" class="form-label">Specific Day</label>
+                    <input type="date" class="form-control" id="day" name="day" value="{{ day }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="start_date" class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="end_date" class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="employee" class="form-label">Employee</label>
+                    <select class="form-select" id="employee" name="employee">
+                        <option value="">All Employees</option>
+                        {% for emp in employees %}
+                            <option value="{{ emp.id }}" {% if selected_employee == emp.id|stringformat:"s" %}selected{% endif %}>{{ emp.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter me-1"></i> Apply Filters
+                    </button>
+                    <a href="{% url 'sales_list' %}" class="btn btn-outline-secondary ms-2">
+                        <i class="fas fa-times me-1"></i> Clear
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h5 class="card-title mb-3"><i class="fas fa-chart-pie me-2"></i> Sales Analytics</h5>
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <div class="card border-0 bg-light h-100">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Total Sales</h6>
+                        <h3 class="card-title">USh {{ total_sales|default:"0"|floatformat:0 }}</h3>
+                        <p class="card-text text-muted small">Filtered results</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="card border-0 bg-light h-100">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Daily Revenue</h6>
+                        <h3 class="card-title">USh {{ daily_revenue|default:"0"|floatformat:0 }}</h3>
+                        <p class="card-text text-muted small">
+                            {% if day %}({{ day }}){% elif start_date or end_date %}(Selected Range){% else %}(Today){% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="card border-0 bg-light h-100">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Top Medicines</h6>
+                        <ul class="list-unstyled mb-0">
+                            {% for med in top_medicines %}
+                                <li>{{ med.medicine__name }}: {{ med.total_qty }} units</li>
+                            {% empty %}
+                                <li class="text-muted">No sales data</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Sale ID</th>
+                        <th>Date</th>
+                        <th>Employee</th>
+                        <th>Items</th>
+                        <th>Total Amount</th>
+                        <th>Receipt</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sale in sales %}
+                    <tr>
+                        <td>{{ sale.id }}</td>
+                        <td>{{ sale.sale_date|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            {% for item in sale.saleitem_set.all %}
+                                {% with transaction=item.stocktransaction_set.first %}
+                                    {% if transaction %}{{ transaction.employee.name }}{% endif %}
+                                {% endwith %}
+                                {% if not forloop.last %}, {% endif %}
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% for item in sale.saleitem_set.all %}
+                                {{ item.medicine.name }} ({{ item.quantity }} @ USh {{ item.medicine.selling_price|floatformat:0 }})<br>
+                            {% endfor %}
+                        </td>
+                        <td>USh {{ sale.total_amount|floatformat:0 }}</td>
+                        <td><a href="{% url 'receipt' sale_id=sale.id %}" class="btn btn-sm btn-outline-primary">View</a></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            No sales recorded{% if selected_employee %} for this employee{% endif %}{% if day %} on {{ day }}{% elif start_date or end_date %} in this range{% endif %}.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

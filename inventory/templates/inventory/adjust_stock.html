@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}Adjust Stock - Clinici{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-exchange-alt me-2"></i> Adjust Stock</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'inventory_list' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Inventory
+        </a>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label for="medicine" class="form-label">Medicine</label>
+                    <select name="medicine" id="medicine" class="form-select">
+                        {% for med in medicines %}
+                            <option value="{{ med.id }}">{{ med.name }} (Current: {{ med.quantity }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="quantity" class="form-label">New Quantity</label>
+                    <input type="number" name="quantity" id="quantity" min="0" class="form-control">
+                </div>
+            </div>
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-sync-alt me-1"></i> Adjust Stock
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

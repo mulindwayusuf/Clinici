@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}Add Medicine - Clinici{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-pills me-2"></i> Add New Medicine</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'inventory_list' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Inventory
+        </a>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="id_name" class="form-label">Medicine Name</label>
+                    {{ form.name }}
+                </div>
+                <div class="col-md-6">
+                    <label for="id_quantity" class="form-label">Quantity</label>
+                    {{ form.quantity }}
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="id_purchase_price" class="form-label">Purchase Price (USh)</label>
+                    <div class="input-group">
+                        <span class="input-group-text">USh</span>
+                        {{ form.purchase_price }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label for="id_selling_price" class="form-label">Selling Price (USh)</label>
+                    <div class="input-group">
+                        <span class="input-group-text">USh</span>
+                        {{ form.selling_price }}
+                    </div>
+                </div>
+            </div>
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label for="id_expiration_date" class="form-label">Expiration Date</label>
+                    {{ form.expiration_date }}
+                </div>
+                <div class="col-md-6">
+                    <label for="id_date_added" class="form-label">Date Added</label>
+                    {{ form.date_added }}
+                </div>
+            </div>
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i> Add Medicine
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

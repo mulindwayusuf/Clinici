@@ -1,0 +1,40 @@
+<div class="col-md-3 col-lg-2 d-none d-md-block sidebar bg-light">
+    <div class="list-group list-group-flush">
+        {% if request.user.role == 'Admin' %}
+            <a href="{% url 'admin_dashboard' %}" class="list-group-item list-group-item-action {% if request.path == '/admin_dashboard/' %}active{% endif %}">
+                <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+            </a>
+            
+            <!-- Django Admin Link -->
+            <a href="/admin/" class="list-group-item list-group-item-action" target="_blank">
+                <i class="fas fa-user-cog me-2"></i> Manage Employees (Admin)
+            </a>
+            
+            <a href="{% url 'inventory_list' %}" class="list-group-item list-group-item-action {% if 'inventory' in request.path %}active{% endif %}">
+                <i class="fas fa-pills me-2"></i> Inventory
+            </a>
+            
+            <a href="{% url 'stock_history' %}" class="list-group-item list-group-item-action {% if 'history' in request.path %}active{% endif %}">
+                <i class="fas fa-history me-2"></i> Stock History
+            </a>
+            
+            <a href="{% url 'sales_list' %}" class="list-group-item list-group-item-action {% if 'sales' in request.path %}active{% endif %}">
+                <i class="fas fa-receipt me-2"></i> Sales
+            </a>
+            
+            <a href="{% url 'attendance_list' %}" class="list-group-item list-group-item-action {% if 'attendance' in request.path %}active{% endif %}">
+                <i class="fas fa-user-clock me-2"></i> Attendance
+            </a>
+            
+        {% else %}
+            <!-- Employee Sidebar Links -->
+            <a href="{% url 'employee_dashboard' %}" class="list-group-item list-group-item-action {% if request.path == '/employee_dashboard/' %}active{% endif %}">
+                <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+            </a>
+            
+            <a href="{% url 'add_sale' %}" class="list-group-item list-group-item-action {% if 'add_sale' in request.path %}active{% endif %}">
+                <i class="fas fa-cash-register me-2"></i> Record Sale
+            </a>
+        {% endif %}
+    </div>
+</div>
