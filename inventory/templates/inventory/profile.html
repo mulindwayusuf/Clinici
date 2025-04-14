@@ -2,47 +2,180 @@
 
 {% block title %}Your Profile - Clinici{% endblock %}
 
+{% block extra_head %}
+<style>
+    .profile-picture {
+        width: 150px;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 3px solid #dee2e6;
+    }
+    .default-avatar {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        background-color: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 3px solid #dee2e6;
+    }
+    .profile-picture-container {
+        margin-bottom: 20px;
+    }
+    .password-requirements {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    .profile-section {
+        margin-bottom: 2rem;
+    }
+    .current-picture-link {
+        word-break: break-all;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2"><i class="fas fa-user me-2"></i> Your Profile</h1>
 </div>
 
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+{% endif %}
+
 <div class="row">
-    <div class="col-md-4 mb-4">
-        <div class="card shadow-sm">
+    <!-- Profile Picture Section -->
+    <div class="col-md-4">
+        <div class="card shadow-sm mb-4">
             <div class="card-body text-center">
-                <div class="mb-3">
-                    <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center mx-auto" style="width: 100px; height: 100px; font-size: 40px;">
-                        {{ request.user.employee.name|first|upper }}
-                    </div>
+                <div class="profile-picture-container">
+                    {% if request.user.employee.profile_picture %}
+                        <img src="{{ request.user.employee.profile_picture.url }}" 
+                             class="profile-picture mb-3"
+                             alt="{{ request.user.employee.name }}'s profile picture">
+                    {% else %}
+                        <div class="default-avatar mb-3 mx-auto">
+                            <i class="fas fa-user fa-3x text-secondary"></i>
+                        </div>
+                    {% endif %}
                 </div>
                 <h4>{{ request.user.employee.name }}</h4>
                 <p class="text-muted mb-1">{{ request.user.employee.job_title }}</p>
-                <p class="text-muted">Member since {{ request.user.employee.hire_date }}</p>
+                <p class="text-muted">Member since {{ request.user.employee.hire_date|date:"F j, Y" }}</p>
                 <p class="text-muted">Salary: USh {{ request.user.employee.salary|floatformat:0 }}</p>
             </div>
         </div>
     </div>
-    <div class="col-md-8 mb-4">
-        <div class="card shadow-sm">
+    
+    <!-- Profile Information Section -->
+    <div class="col-md-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-user-edit me-2"></i> Profile Information</h5>
+            </div>
             <div class="card-body">
-                <h5 class="card-title mb-4"><i class="fas fa-user-edit me-2"></i> Profile Information</h5>
-                <form method="post">
+                <form method="post" enctype="multipart/form-data">
                     {% csrf_token %}
+                    <input type="hidden" name="profile_submit" value="1">
+                    
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label for="id_name" class="form-label">Full Name</label>
-                            {{ form.name }}
+                            <input type="text" class="form-control" id="id_name" name="name" 
+                                   value="{{ form.instance.name }}" required>
                         </div>
                         <div class="col-md-6">
                             <label for="id_contact_info" class="form-label">Contact Information</label>
-                            {{ form.contact_info }}
+                            <input type="text" class="form-control" id="id_contact_info" name="contact_info" 
+                                   value="{{ form.instance.contact_info }}">
                         </div>
                     </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="id_email" class="form-label">Email Address</label>
+                            <input type="email" class="form-control" id="id_email" name="email" 
+                                   value="{{ form.instance.email }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_profile_picture" class="form-label">Profile Picture</label>
+                            <input type="file" class="form-control" id="id_profile_picture" name="profile_picture"
+                                   accept="image/*">
+                            
+                            {% if form.instance.profile_picture %}
+                                <div class="mt-2">
+                                    <small class="text-muted">Current picture:</small>
+                                    <div class="d-flex align-items-center mt-1">
+                                        <a href="{{ form.instance.profile_picture.url }}" 
+                                           target="_blank" 
+                                           class="current-picture-link text-primary me-2">
+                                            {{ form.instance.profile_picture.name|slice:"15:" }}
+                                        </a>
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" 
+                                                   name="remove_picture" id="remove_picture">
+                                            <label class="form-check-label text-danger" for="remove_picture">
+                                                Remove
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save me-1"></i> Save Changes
                         </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Change Password Section -->
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-key me-2"></i> Change Password</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="change_password_submit" value="1">
+                    
+                    <div class="mb-3">
+                        <label for="id_old_password" class="form-label">Current Password</label>
+                        <input type="password" class="form-control" id="id_old_password" name="old_password" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="id_new_password1" class="form-label">New Password</label>
+                        <input type="password" class="form-control" id="id_new_password1" name="new_password1" required>
+                        <div class="password-requirements">
+                            <small>
+                                Your password must contain at least 8 characters, can't be too similar to your other personal information, and can't be a commonly used password.
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="id_new_password2" class="form-label">Confirm New Password</label>
+                        <input type="password" class="form-control" id="id_new_password2" name="new_password2" required>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-key me-1"></i> Change Password
+                        </button>
+                        <a href="{% url 'request_password_change' %}" class="btn btn-link">Forgot Password?</a>
                     </div>
                 </form>
             </div>

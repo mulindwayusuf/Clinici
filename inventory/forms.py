@@ -1,6 +1,6 @@
 from django import forms
+from django.contrib.auth.forms import PasswordChangeForm
 from .models import Medicine, StockTransaction, Sale, Employee
-from django.utils import timezone
 
 class MedicineForm(forms.ModelForm):
     class Meta:
@@ -46,8 +46,27 @@ class SaleForm(forms.ModelForm):
 class EmployeeForm(forms.ModelForm):
     class Meta:
         model = Employee
-        fields = ['name', 'contact_info']
+        fields = ['name', 'contact_info', 'email', 'profile_picture']
         labels = {
             'name': 'Employee Name',
             'contact_info': 'Contact Information',
+            'email': 'Email Address',
+            'profile_picture': 'Profile Picture',
         }
+        widgets = {
+            'profile_picture': forms.FileInput(attrs={'class': 'form-control'}),
+        }
+
+class CustomPasswordChangeForm(PasswordChangeForm):
+    old_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        label="Current Password"
+    )
+    new_password1 = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        label="New Password"
+    )
+    new_password2 = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        label="Confirm New Password"
+    )

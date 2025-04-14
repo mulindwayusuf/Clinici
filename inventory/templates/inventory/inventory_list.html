@@ -2,9 +2,27 @@
 
 {% block title %}Medicine Inventory - Clinici{% endblock %}
 
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css">
+<style>
+    .ui-autocomplete {
+        max-height: 200px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    .search-container {
+        margin-bottom: 20px;
+    }
+    .highlight {
+        background-color: #fff3cd !important;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2"><i class="fas fa-pills me-2"></i> Medicine Inventory</h1>
+    <h5><p id="current-time"></p></h5>
     <div class="btn-toolbar mb-2 mb-md-0">
         <div class="btn-group me-2">
             <a href="{% url 'add_medicine' %}" class="btn btn-sm btn-primary">
@@ -17,10 +35,24 @@
     </div>
 </div>
 
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <div class="search-container">
+            <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                <input type="text" id="inventory-search" class="form-control" placeholder="Search medicines...">
+                <button class="btn btn-outline-secondary" type="button" id="clear-inventory-search">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card shadow-sm">
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover" id="inventory-table">
                 <thead class="table-light">
                     <tr>
                         <th>Name</th>
@@ -34,7 +66,7 @@
                 </thead>
                 <tbody>
                     {% for medicine in medicines %}
-                    <tr>
+                    <tr data-medicine-name="{{ medicine.name|lower }}">
                         <td>{{ medicine.name }}</td>
                         <td class="{% if medicine.quantity < 10 %}text-danger fw-bold{% endif %}">
                             {{ medicine.quantity }}
@@ -72,4 +104,67 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script>
+$(function() {
+    // Inventory search functionality
+    $("#inventory-search").autocomplete({
+        source: "{% url 'medicine_autocomplete' %}",
+        minLength: 2,
+        select: function(event, ui) {
+            highlightMedicine(ui.item.value);
+            $(this).val('');
+            return false;
+        }
+    }).autocomplete("instance")._renderItem = function(ul, item) {
+        return $("<li>")
+            .append(`<div>${item.label}</div>`)
+            .appendTo(ul);
+    };
+    
+    // Clear search button
+    $("#clear-inventory-search").click(function() {
+        $("#inventory-search").val('').focus();
+        $("tr[data-medicine-name]").removeClass("highlight");
+    });
+    
+    // Highlight medicine in table
+    function highlightMedicine(medicineName) {
+        $("tr[data-medicine-name]").removeClass("highlight");
+        const searchLower = medicineName.toLowerCase();
+        
+        $("tr[data-medicine-name]").each(function() {
+            const rowName = $(this).data("medicine-name");
+            if (rowName.includes(searchLower)) {
+                $(this).addClass("highlight");
+                $('html, body').animate({
+                    scrollTop: $(this).offset().top - 150
+                }, 500);
+            }
+        });
+    }
+    
+    // Search as you type
+    $("#inventory-search").on('input', function() {
+        const searchTerm = $(this).val().toLowerCase();
+        
+        if (searchTerm.length >= 2) {
+            $("tr[data-medicine-name]").each(function() {
+                const rowName = $(this).data("medicine-name");
+                if (rowName.includes(searchTerm)) {
+                    $(this).addClass("highlight");
+                } else {
+                    $(this).removeClass("highlight");
+                }
+            });
+        } else {
+            $("tr[data-medicine-name]").removeClass("highlight");
+        }
+    });
+});
+</script>
 {% endblock %}

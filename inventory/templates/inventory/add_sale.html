@@ -1,6 +1,21 @@
+
 {% extends 'base.html' %}
 
 {% block title %}Record Sale - Clinici{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css">
+<style>
+    .ui-autocomplete {
+        max-height: 200px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    .medicine-search-container {
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -20,42 +35,30 @@
 
 <div class="card shadow-sm">
     <div class="card-body">
-        <form method="post">
+        <form method="post" id="sale-form">
             {% csrf_token %}
+            
+            <div class="medicine-search-container">
+                <div class="input-group mb-3">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" id="medicine-search" class="form-control" placeholder="Search medicines...">
+                </div>
+            </div>
             
             <div class="mb-4">
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table table-hover" id="medicine-table">
                         <thead class="table-light">
                             <tr>
                                 <th>Medicine</th>
                                 <th>Available</th>
                                 <th>Price</th>
                                 <th>Quantity to Sell</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            {% for medicine in medicines %}
-                            <tr>
-                                <td>{{ medicine.name }}</td>
-                                <td class="{% if medicine.quantity < 5 %}text-danger fw-bold{% endif %}">
-                                    {{ medicine.quantity }}
-                                </td>
-                                <td>USh {{ medicine.selling_price|floatformat:0 }}</td>
-                                <td>
-                                    <div class="input-group" style="max-width: 120px;">
-                                        <input type="number" name="quantities" class="form-control" min="0" max="{{ medicine.quantity }}" value="0">
-                                        <input type="hidden" name="medicine_ids" value="{{ medicine.id }}">
-                                    </div>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="4" class="text-center text-muted py-4">
-                                    No medicines available in inventory
-                                </td>
-                            </tr>
-                            {% endfor %}
+                        <tbody id="selected-medicines">
+                            <!-- Medicines will be added here dynamically -->
                         </tbody>
                     </table>
                 </div>
@@ -69,4 +72,84 @@
         </form>
     </div>
 </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script>
+$(function() {
+    // Autocomplete for medicine search
+    $("#medicine-search").autocomplete({
+        source: "{% url 'medicine_autocomplete' %}",
+        minLength: 2,
+        select: function(event, ui) {
+            // When a medicine is selected, add it to the table
+            addMedicineToTable(ui.item.value);
+            $(this).val(''); // Clear the search field
+            return false;
+        }
+    });
+    
+    // Function to add medicine to the table
+    function addMedicineToTable(medicineName) {
+        // Check if medicine already exists in the table
+        if ($(`input[name="medicine_names"][value="${medicineName}"]`).length > 0) {
+            alert('This medicine is already added to the sale.');
+            return;
+        }
+        
+        // Make an AJAX call to get medicine details
+        $.ajax({
+            url: "{% url 'medicine_autocomplete' %}",
+            data: {
+                'term': medicineName,
+                'details': true
+            },
+            success: function(data) {
+                if (data.length > 0) {
+                    const medicine = data[0];
+                    const row = `
+                        <tr>
+                            <td>${medicine.name}</td>
+                            <td class="${medicine.quantity < 5 ? 'text-danger fw-bold' : ''}">
+                                ${medicine.quantity}
+                            </td>
+                            <td>USh ${medicine.selling_price}</td>
+                            <td>
+                                <div class="input-group" style="max-width: 120px;">
+                                    <input type="number" name="quantities" class="form-control quantity-input" 
+                                           min="1" max="${medicine.quantity}" value="1">
+                                    <input type="hidden" name="medicine_ids" value="${medicine.id}">
+                                    <input type="hidden" name="medicine_names" value="${medicine.name}">
+                                </div>
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-outline-danger remove-medicine">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                    $("#selected-medicines").append(row);
+                }
+            }
+        });
+    }
+    
+    // Remove medicine from table
+    $(document).on('click', '.remove-medicine', function() {
+        $(this).closest('tr').remove();
+    });
+    
+    // Form submission handling
+    $("#sale-form").on('submit', function(e) {
+        if ($("#selected-medicines tr").length === 0) {
+            e.preventDefault();
+            alert("Please add at least one medicine to the sale.");
+        }
+    });
+});
+</script>
 {% endblock %}

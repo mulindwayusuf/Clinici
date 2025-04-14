@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import AbstractUser
 from django.contrib import messages
 from .models import Medicine, StockTransaction, Sale, SaleItem, Notification, Attendance, Employee
 from .forms import MedicineForm, StockTransactionForm, SaleForm, EmployeeForm
@@ -7,7 +8,10 @@ from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Q, Sum
 from django.db import transaction
-import logging
+import logging, os
+from django.http import JsonResponse
+from django.db import models
+
 
 logger = logging.getLogger(__name__)
 
@@ -345,6 +349,40 @@ def sales_list(request):
         'daily_revenue': daily_revenue,
         'top_medicines': top_medicines,
     })
+def medicine_autocomplete(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+    
+    search_term = request.GET.get('term', '')
+    details = request.GET.get('details', False)
+    
+    if details:
+        # Return full details for selected medicine
+        medicine = get_object_or_404(Medicine, name=search_term)
+        data = [{
+            'id': medicine.id,
+            'name': medicine.name,
+            'quantity': medicine.quantity,
+            'selling_price': medicine.selling_price,
+            'purchase_price': medicine.purchase_price,
+            'expiration_date': medicine.expiration_date.strftime('%Y-%m-%d')
+        }]
+        return JsonResponse(data, safe=False)
+    else:
+        # Return autocomplete suggestions
+        medicines = Medicine.objects.filter(
+            Q(name__icontains=search_term) | 
+            Q(name__istartswith=search_term)
+        ).distinct()
+        
+        if 'id' in request.GET:
+            # For stock history search that needs both id and name
+            results = [{'id': med.id, 'value': med.name} for med in medicines[:10]]
+        else:
+            # For simple autocomplete
+            results = list(medicines.values_list('name', flat=True)[:10])
+        
+        return JsonResponse(results, safe=False)
 
 def receipt(request, sale_id):
     if not request.user.is_authenticated:
@@ -387,17 +425,216 @@ def stock_history(request):
         'transactions': transactions,
         'selected_medicine': medicine_id,
     })
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import update_session_auth_hash
+from .forms import EmployeeForm, CustomPasswordChangeForm
+from django.core.files.storage import FileSystemStorage
+import os
+
+@login_required
+def profile(request):
+    employee = request.user.employee
+    
+    if request.method == 'POST':
+        if 'profile_submit' in request.POST:
+            form = EmployeeForm(request.POST, request.FILES, instance=employee)
+            if form.is_valid():
+                # Handle profile picture upload
+                if 'profile_picture' in request.FILES:
+                    # Delete old profile picture if it exists
+                    old_pic = employee.profile_picture
+                    if old_pic:
+                        fs = FileSystemStorage()
+                        if fs.exists(old_pic.name):
+                            fs.delete(old_pic.name)
+                    # Save new profile picture
+                    form.save()
+                else:
+                    # Save without changing the profile picture
+                    form.save()
+                
+                messages.success(request, 'Profile updated successfully!')
+                return redirect('profile')
+        
+        elif 'change_password_submit' in request.POST:
+            password_form = CustomPasswordChangeForm(user=request.user, data=request.POST)
+            if password_form.is_valid():
+                user = password_form.save()
+                update_session_auth_hash(request, user)  # Important to keep the user logged in
+                messages.success(request, 'Your password was successfully updated!')
+                return redirect('profile')
+            else:
+                # Add error messages for password change form
+                for field, errors in password_form.errors.items():
+                    for error in errors:
+                        messages.error(request, f"{field}: {error}")
+    else:
+        form = EmployeeForm(instance=employee)
+        password_form = CustomPasswordChangeForm(user=request.user)
+    
+    context = {
+        'form': form,
+        'password_form': password_form,
+    }
+    return render(request, 'inventory/profile.html', context)
+from django.core.mail import send_mail
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.template.loader import render_to_string
+from django.conf import settings
+
+def request_password_change(request):
+    if request.method == 'POST':
+        email = request.POST.get('email')
+        try:
+            user = request.user.__class__.objects.get(employee__email=email)
+            
+            # Generate token and send email
+            token = default_token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            
+            mail_subject = 'Password Change Request'
+            message = render_to_string('inventory/password_reset_email.html', {
+                'user': user,
+                'domain': request.get_host(),
+                'uid': uid,
+                'token': token,
+            })
+            
+            send_mail(
+                mail_subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [email],
+                fail_silently=False,
+            )
+            
+            messages.success(request, 'We have sent you an email with instructions to reset your password.')
+            return redirect('login')
+        except request.user.__class__.DoesNotExist:
+            messages.error(request, 'No account found with that email address.')
+    
+    return render(request, 'inventory/request_password_change.html')
+
+from django.core.files.storage import FileSystemStorage
 
 def profile(request):
     if not request.user.is_authenticated:
         return redirect('login')
+    
     employee = request.user.employee
+    form = EmployeeForm(instance=employee)
+    password_form = CustomPasswordChangeForm(user=request.user)
+
     if request.method == 'POST':
-        form = EmployeeForm(request.POST, instance=employee)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Profile updated successfully!')
-            return redirect('profile')
+        if 'profile_submit' in request.POST:
+            form = EmployeeForm(request.POST, request.FILES, instance=employee)
+            if form.is_valid():
+                # Handle profile picture removal
+                if 'remove_picture' in request.POST:
+                    if employee.profile_picture:
+                        # Delete the file from storage
+                        fs = FileSystemStorage()
+                        if fs.exists(employee.profile_picture.name):
+                            fs.delete(employee.profile_picture.name)
+                        # Clear the field in the database
+                        employee.profile_picture = None
+                        employee.save()
+                
+                # Handle new profile picture upload
+                elif 'profile_picture' in request.FILES:
+                    # Delete old picture if it exists
+                    if employee.profile_picture:
+                        fs = FileSystemStorage()
+                        if fs.exists(employee.profile_picture.name):
+                            fs.delete(employee.profile_picture.name)
+                    # Save the form with new picture
+                    form.save()
+                else:
+                    # Save without changing the picture
+                    form.save()
+                
+                messages.success(request, 'Profile updated successfully!')
+                return redirect('profile')
+
+        elif 'change_password_submit' in request.POST:
+            password_form = CustomPasswordChangeForm(user=request.user, data=request.POST)
+            if password_form.is_valid():
+                user = password_form.save()
+                update_session_auth_hash(request, user)
+                messages.success(request, 'Your password was successfully updated!')
+                return redirect('profile')
+
+    context = {
+        'form': form,
+        'password_form': password_form,
+    }
+    return render(request, 'inventory/profile.html', context)
+
+from django.core.mail import send_mail
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.template.loader import render_to_string
+from django.conf import settings
+
+def request_password_change(request):
+    if request.method == 'POST':
+        email = request.POST.get('email')
+        try:
+            user = request.user.__class__.objects.get(employee__email=email)
+            
+            # Generate token and send email
+            token = default_token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            
+            mail_subject = 'Password Change Request'
+            message = render_to_string('inventory/password_reset_email.html', {
+                'user': user,
+                'domain': request.get_host(),
+                'uid': uid,
+                'token': token,
+            })
+            
+            send_mail(
+                mail_subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [email],
+                fail_silently=False,
+            )
+            
+            messages.success(request, 'We have sent you an email with instructions to reset your password.')
+            return redirect('login')
+        except request.user.__class__.DoesNotExist:
+            messages.error(request, 'No account found with that email address.')
+    
+    return render(request, 'inventory/request_password_change.html')
+
+def confirm_password_change(request, uidb64, token):
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = request.user.__class__.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, request.user.__class__.DoesNotExist):
+        user = None
+    
+    if user is not None and default_token_generator.check_token(user, token):
+        if request.method == 'POST':
+            form = CustomPasswordChangeForm(user=user, data=request.POST)
+            if form.is_valid():
+                form.save()
+                update_session_auth_hash(request, form.user)
+                messages.success(request, 'Your password has been changed successfully!')
+                return redirect('login')
+        else:
+            form = CustomPasswordChangeForm(user=user)
+        
+        return render(request, 'inventory/confirm_password_change.html', {'form': form})
     else:
-        form = EmployeeForm(instance=employee)
-    return render(request, 'inventory/profile.html', {'form': form})
+        messages.error(request, 'The password reset link is invalid or has expired.')
+        return redirect('login')
+
+

@@ -2,6 +2,20 @@
 
 {% block title %}Stock History - Clinici{% endblock %}
 
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css">
+<style>
+    .ui-autocomplete {
+        max-height: 200px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    .search-highlight {
+        background-color: #fff3cd;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2"><i class="fas fa-history me-2"></i> Stock History</h1>
@@ -14,18 +28,19 @@
 
 <div class="card shadow-sm mb-4">
     <div class="card-body">
-        <form method="get" action="{% url 'stock_history' %}">
+        <form method="get" action="{% url 'stock_history' %}" id="history-form">
             <div class="row">
                 <div class="col-md-8">
-                    <label for="medicine" class="form-label">Select Medicine:</label>
-                    <select name="medicine" id="medicine" class="form-select">
-                        <option value="">-- Select a Medicine --</option>
-                        {% for med in medicines %}
-                            <option value="{{ med.id }}" {% if selected_medicine == med.id|stringformat:"s" %}selected{% endif %}>
-                                {{ med.name }} (Current: {{ med.quantity }})
-                            </option>
-                        {% endfor %}
-                    </select>
+                    <label for="medicine-search" class="form-label">Search Medicine:</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" id="medicine-search" class="form-control" 
+                               placeholder="Type medicine name..." value="{{ selected_medicine_name|default:'' }}">
+                        <input type="hidden" name="medicine" id="medicine-id" value="{{ selected_medicine|default:'' }}">
+                        <button class="btn btn-outline-secondary" type="button" id="clear-history-search">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="col-md-4 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100">
@@ -52,6 +67,7 @@
                         <th>Type</th>
                         <th>Quantity</th>
                         <th>Employee</th>
+                        <th>Notes</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -59,14 +75,23 @@
                     <tr>
                         <td>{{ trans.transaction_date|date:"Y-m-d H:i" }}</td>
                         <td class="text-{{ trans.transaction_type|lower }}">
-                            {{ trans.transaction_type }}
+                            <span class="badge bg-{% if trans.transaction_type == 'Intake' %}success{% elif trans.transaction_type == 'Sale' %}primary{% else %}warning{% endif %}">
+                                {{ trans.transaction_type }}
+                            </span>
                         </td>
                         <td>{{ trans.quantity }}</td>
                         <td>{{ trans.employee.name|default:"System" }}</td>
+                        <td>
+                            {% if trans.sale_item %}
+                                Sale #{{ trans.sale_item.sale.id }}
+                            {% elif trans.notes %}
+                                {{ trans.notes }}
+                            {% endif %}
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="4" class="text-center text-muted py-4">
+                        <td colspan="5" class="text-center text-muted py-4">
                             No transactions recorded for this medicine.
                         </td>
                     </tr>
@@ -77,4 +102,64 @@
     </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script>
+$(function() {
+    // Medicine search autocomplete
+    $("#medicine-search").autocomplete({
+        source: function(request, response) {
+            $.ajax({
+                url: "{% url 'medicine_autocomplete' %}",
+                data: {
+                    'term': request.term,
+                    'id': true
+                },
+                success: function(data) {
+                    response(data);
+                }
+            });
+        },
+        minLength: 2,
+        select: function(event, ui) {
+            $("#medicine-id").val(ui.item.id);
+            $("#medicine-search").val(ui.item.value);
+            return false;
+        },
+        focus: function(event, ui) {
+            $("#medicine-search").val(ui.item.value);
+            return false;
+        }
+    }).autocomplete("instance")._renderItem = function(ul, item) {
+        return $("<li>")
+            .append(`<div>${item.value}</div>`)
+            .appendTo(ul);
+    };
+    
+    // Clear search button
+    $("#clear-history-search").click(function() {
+        $("#medicine-search").val('');
+        $("#medicine-id").val('');
+        $("#medicine-search").focus();
+    });
+    
+    // Form submission validation
+    $("#history-form").on('submit', function(e) {
+        if ($("#medicine-id").val() === '' && $("#medicine-search").val() !== '') {
+            e.preventDefault();
+            alert("Please select a medicine from the dropdown list.");
+            $("#medicine-search").focus();
+        }
+    });
+    
+    // Highlight search term in medicine name if coming from another page
+    const selectedMedicine = "{{ selected_medicine_name|escapejs }}";
+    if (selectedMedicine) {
+        $("#medicine-search").val(selectedMedicine);
+    }
+});
+</script>
 {% endblock %}
